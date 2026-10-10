@@ -7,7 +7,7 @@ A basic Employee Portal developed for Information Assurance and Security 2. The 
 - Employee and administrator authentication
 - Account lockout after repeated failed login attempts
 - Role-based access control for administrator pages
-- Session timeout and logout invalidation
+- Audited 15-minute idle timeout and logout invalidation
 - Employee record management using dummy data
 - Audit logging for login and employee-record activities
 - Automated security-control tests

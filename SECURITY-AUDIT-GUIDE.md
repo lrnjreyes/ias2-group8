@@ -31,7 +31,7 @@ Sign in as the employee and manually open `/admin/employees`. The server must re
 
 ### AUD-03: Secure session termination
 
-Sign in, log out, and use the browser Back button or reopen `/dashboard`. The application must require authentication again. Capture the login redirect. The configured session lifetime is 15 minutes.
+Sign in and leave the application inactive for 15 minutes. The application must sign the user out, redirect to login, and create an `auth.session.expired` audit entry containing the user and configured idle duration. Also test manual logout and confirm that reopening `/dashboard` requires authentication.
 
 ### AUD-04: Audit logging
 

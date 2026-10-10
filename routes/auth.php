@@ -56,4 +56,7 @@ Route::middleware('auth')->group(function () {
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
+
+    Route::post('session/timeout', [AuthenticatedSessionController::class, 'timeout'])
+        ->name('session.timeout');
 });

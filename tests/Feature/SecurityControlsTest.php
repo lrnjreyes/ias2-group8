@@ -59,4 +59,35 @@ class SecurityControlsTest extends TestCase
         $this->get('/dashboard')->assertRedirect('/login');
         $this->assertTrue(AuditLog::where('event', 'auth.logout')->exists());
     }
+
+    public function test_timeout_endpoint_records_expired_session_and_logs_user_out(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/session/timeout')
+            ->assertRedirect('/login');
+
+        $this->assertGuest();
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $user->id,
+            'event' => 'auth.session.expired',
+        ]);
+    }
+
+    public function test_stale_authenticated_session_is_ended_and_audited(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->withSession(['last_activity_at' => now()->subMinutes(16)->timestamp])
+            ->get('/dashboard')
+            ->assertRedirect('/login');
+
+        $this->assertGuest();
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $user->id,
+            'event' => 'auth.session.expired',
+        ]);
+    }
 }

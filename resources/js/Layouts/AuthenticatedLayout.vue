@@ -1,13 +1,36 @@
 <script setup>
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link } from '@inertiajs/vue3';
+import { Link, router } from '@inertiajs/vue3';
 
 const showingNavigationDropdown = ref(false);
+const idleTimeoutMilliseconds = 15 * 60 * 1000;
+let idleTimer;
+
+const expireSession = () => {
+    router.post(route('session.timeout'), {}, { replace: true });
+};
+
+const resetIdleTimer = () => {
+    window.clearTimeout(idleTimer);
+    idleTimer = window.setTimeout(expireSession, idleTimeoutMilliseconds);
+};
+
+const activityEvents = ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'];
+
+onMounted(() => {
+    activityEvents.forEach((event) => window.addEventListener(event, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+});
+
+onBeforeUnmount(() => {
+    window.clearTimeout(idleTimer);
+    activityEvents.forEach((event) => window.removeEventListener(event, resetIdleTimer));
+});
 </script>
 
 <template>

@@ -33,6 +33,7 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+        $request->session()->put('last_activity_at', now()->timestamp);
 
         AuditLog::record($request, 'auth.login.succeeded');
 
@@ -53,5 +54,22 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    /**
+     * End an inactive session and record the timeout event.
+     */
+    public function timeout(Request $request): RedirectResponse
+    {
+        AuditLog::record($request, 'auth.session.expired', metadata: [
+            'idle_minutes' => (int) config('session.idle_timeout', 15),
+        ]);
+
+        Auth::guard('web')->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')->with('status', 'Your session expired after 15 minutes of inactivity.');
     }
 }
