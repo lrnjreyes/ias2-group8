@@ -37,13 +37,6 @@ const submit = () => {
             {{ status }}
         </div>
 
-        <div class="mb-6 rounded-md border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
-            <p class="font-semibold">IAS2 demonstration accounts</p>
-            <p class="mt-1">Employee: employee@example.test</p>
-            <p>Administrator: admin@example.test</p>
-            <p>Password: DemoPassword!2026</p>
-        </div>
-
         <form @submit.prevent="submit">
             <div>
                 <InputLabel for="email" value="Email" />
