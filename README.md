@@ -41,6 +41,47 @@ and run the launcher again. Keep `run-local.bat` and the `scripts` folder in the
 project when sharing it. Downloaded tools in `dependencies` are generated locally
 and are excluded from Git.
 
+### macOS, Linux, and Codespaces
+
+Install PHP 8.3 or later with SQLite support and Node.js 24 with npm, available
+in your terminal. For macOS, [Laravel Herd](https://herd.laravel.com/) provides
+PHP; [Node.js](https://nodejs.org/en/download) provides Node and npm.
+Codespaces runs Linux, regardless of the computer used to access it.
+
+In the project folder, run:
+
+```bash
+bash run-local.sh
+```
+
+The launcher downloads Composer into `dependencies`, creates the required storage
+folders, installs the application packages, prepares the database and demonstration
+accounts, and builds the frontend. It keeps existing accounts and the application
+key on later runs. First setup needs an internet connection. PHP and Node use the
+versions installed on your machine; the Windows runtime downloads are not used.
+
+On macOS, open the address printed in the terminal. In Codespaces, open port 8000
+from the **Ports** tab. Keep the terminal open; press Ctrl+C to stop.
+Use `bash run-local.sh 8080` to request a different starting port, or
+`bash run-local.sh --setup-only` to prepare the app without starting the server.
+
+### Fixing "Please provide a valid cache path"
+
+This error means Laravel's compiled-view directory is missing or its cached
+configuration points to an old path. In the Mac/Linux/Codespaces terminal, stop
+the server with Ctrl+C, then run:
+
+```bash
+mkdir -p storage/framework/{cache/data,sessions,views} storage/logs bootstrap/cache
+php artisan config:clear
+php artisan view:clear
+php artisan serve --host=0.0.0.0 --port=8000
+```
+
+The last command is for Codespaces. For a local Mac, use `php artisan serve`.
+The storage placeholder files in this project keep these directories present
+in fresh clones. Include them when sharing the project.
+
 ### Manual setup
 
 Requirements: PHP 8.3 or later, Composer, Node.js, and npm.
