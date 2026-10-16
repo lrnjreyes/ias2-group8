@@ -28,6 +28,10 @@ class PasswordResetTest extends TestCase
         $this->post('/forgot-password', ['email' => $user->email]);
 
         Notification::assertSentTo($user, ResetPassword::class);
+        $this->assertDatabaseHas('audit_logs', [
+            'event' => 'auth.password.reset_requested',
+            'subject_id' => $user->id,
+        ]);
     }
 
     public function test_reset_password_screen_can_be_rendered(): void
@@ -66,6 +70,11 @@ class PasswordResetTest extends TestCase
             $response
                 ->assertSessionHasNoErrors()
                 ->assertRedirect(route('login'));
+
+            $this->assertDatabaseHas('audit_logs', [
+                'event' => 'auth.password.reset',
+                'subject_id' => $user->id,
+            ]);
 
             return true;
         });
