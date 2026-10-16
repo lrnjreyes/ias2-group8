@@ -101,10 +101,9 @@ class MfaPromptController extends Controller
             AuditLog::record($request, 'auth.mfa.enrolled', $user);
         }
 
-        $remember = (bool) $request->session()->pull('auth.mfa.remember', false);
-        $request->session()->forget(['auth.mfa.user_id']);
+        $request->session()->forget(['auth.mfa.user_id', 'auth.mfa.remember']);
 
-        Auth::login($user, $remember);
+        Auth::login($user);
 
         $request->session()->regenerate();
         $request->session()->put('last_activity_at', now()->timestamp);

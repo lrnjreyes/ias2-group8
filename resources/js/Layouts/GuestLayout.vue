@@ -1,6 +1,13 @@
 <script setup>
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import { Link } from '@inertiajs/vue3';
+
+defineProps({
+    variant: {
+        type: String,
+        default: 'default',
+    },
+});
 </script>
 
 <template>
@@ -14,7 +21,9 @@ import { Link } from '@inertiajs/vue3';
         </div>
 
         <div
-            class="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg"
+            :class="variant === 'setup'
+                ? 'mt-6 w-full overflow-hidden rounded border border-gray-200 bg-white px-6 py-7 shadow-sm sm:max-w-lg sm:px-10 sm:py-8'
+                : 'mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg'"
         >
             <slot />
         </div>

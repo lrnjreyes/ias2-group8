@@ -32,23 +32,16 @@ class AuthenticatedSessionController extends Controller
     {
         $user = $request->authenticate();
 
-        if ($user->hasMfaEnabled()) {
-            $request->session()->put('auth.mfa.user_id', $user->id);
-            $request->session()->put('auth.mfa.remember', $request->boolean('remember'));
-
-            AuditLog::record($request, 'auth.mfa.challenged', $user);
-
-            return redirect()->route('mfa.challenge');
+        if (! $user->hasMfaEnabled()) {
+            $user->update(['mfa_enabled' => true]);
         }
 
-        Auth::login($user, $request->boolean('remember'));
-
         $request->session()->regenerate();
-        $request->session()->put('last_activity_at', now()->timestamp);
+        $request->session()->put('auth.mfa.user_id', $user->id);
 
-        AuditLog::record($request, 'auth.login.succeeded');
+        AuditLog::record($request, 'auth.mfa.challenged', $user);
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->route('mfa.challenge');
     }
 
     /**

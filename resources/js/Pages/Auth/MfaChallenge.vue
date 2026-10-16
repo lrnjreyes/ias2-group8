@@ -35,6 +35,7 @@ const digits = ref(['', '', '', '', '', '']);
 const digitInputs = ref([]);
 const qrCodeUrl = ref('');
 const copied = ref(false);
+const copyError = ref('');
 const setupMode = ref(props.isSetup);
 
 onMounted(async () => {
@@ -52,7 +53,7 @@ onMounted(async () => {
     }
 
     nextTick(() => {
-        digitInputs.value[0]?.focus();
+        if (!setupMode.value) digitInputs.value[0]?.focus();
     });
 });
 
@@ -133,13 +134,14 @@ const submit = () => {
 };
 
 const copySecret = async () => {
+    copyError.value = '';
     try {
         await navigator.clipboard.writeText(props.secret);
         copied.value = true;
         setTimeout(() => (copied.value = false), 2000);
-    } catch (e) {
-        copied.value = true;
-        setTimeout(() => (copied.value = false), 2000);
+    } catch {
+        copied.value = false;
+        copyError.value = 'Select the setup key and copy it manually.';
     }
 };
 
@@ -149,7 +151,7 @@ const cancel = () => {
 </script>
 
 <template>
-    <GuestLayout>
+    <GuestLayout :variant="setupMode ? 'setup' : 'default'">
         <Head :title="setupMode ? 'Set Up Authenticator' : 'Two-Factor Authentication'" />
 
         <!-- Status Notification -->
@@ -157,61 +159,49 @@ const cancel = () => {
             {{ status }}
         </div>
 
-        <!-- ============================================================== -->
-        <!-- VIEW 1: FIRST-TIME SETUP (Google / Modern Setup with QR Code) -->
-        <!-- ============================================================== -->
         <div v-if="setupMode">
-            <div class="mb-4 text-center">
-                <div class="mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 text-blue-600 ring-4 ring-blue-50/50">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                    </svg>
-                </div>
-                <h1 class="text-xl font-bold tracking-tight text-gray-900">Set Up Authenticator App</h1>
-                <p class="mt-1 text-xs text-gray-500">
-                    Scan this QR code using Google Authenticator, Microsoft Authenticator, or any TOTP app on your phone.
+            <header>
+                <h1 class="text-2xl font-semibold tracking-tight text-gray-900">Set up your authenticator</h1>
+                <p class="mt-1 break-all text-sm text-gray-600">{{ email }}</p>
+                <p class="mt-5 text-sm leading-6 text-gray-700">
+                    Open Microsoft Authenticator, Google Authenticator, or another authenticator app. Add an account, then scan this QR code.
                 </p>
+            </header>
+
+            <div class="my-5 flex justify-center">
+                <img
+                    v-if="qrCodeUrl"
+                    :src="qrCodeUrl"
+                    alt="Scan this QR code with your authenticator app"
+                    width="200"
+                    height="200"
+                    class="h-[200px] w-[200px]"
+                />
+                <div v-else role="status" class="flex h-[200px] w-[200px] items-center justify-center text-sm text-gray-600">
+                    Loading QR code...
+                </div>
             </div>
 
-            <!-- QR Code Card -->
-            <div class="mb-4 rounded-xl border border-gray-200 bg-gray-50/80 p-3 text-center">
-                <div class="flex justify-center">
-                    <div class="inline-block rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
-                        <img
-                            v-if="qrCodeUrl"
-                            :src="qrCodeUrl"
-                            alt="Authenticator QR Code"
-                            class="h-40 w-40 rounded-lg"
-                        />
-                        <div v-else class="flex h-40 w-40 items-center justify-center text-xs text-gray-400">
-                            Loading QR code...
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Manual Entry Key -->
-                <div class="mt-3 flex items-center justify-between rounded-lg bg-white p-2 border border-gray-200 text-xs">
-                    <div class="text-left">
-                        <span class="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Setup Key</span>
-                        <span class="font-mono text-xs font-bold text-gray-800 tracking-wider">{{ secret }}</span>
-                    </div>
+            <div>
+                <p class="text-sm text-gray-600">Can't scan? Enter this setup key manually.</p>
+                <div class="mt-1 flex flex-wrap items-center justify-between gap-x-3">
+                    <code class="select-all break-all font-mono text-base tracking-wide text-gray-900">{{ secret }}</code>
                     <button
                         type="button"
                         @click="copySecret"
-                        class="rounded bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700 hover:bg-blue-100 border border-blue-200 transition"
+                        class="min-h-11 rounded-sm px-2 text-sm font-medium text-[#0067b8] hover:underline focus:outline-none focus:ring-2 focus:ring-[#0067b8] focus:ring-offset-2"
                     >
-                        {{ copied ? 'Copied!' : 'Copy Key' }}
+                        {{ copied ? 'Copied' : 'Copy key' }}
                     </button>
                 </div>
+                <p role="status" class="sr-only">{{ copied ? 'Setup key copied.' : '' }}</p>
+                <p v-if="copyError" role="status" class="mt-1 text-sm text-gray-600">{{ copyError }}</p>
             </div>
 
-            <div class="mb-3 text-center text-xs text-gray-600 font-medium">
-                Enter the 6-digit code shown in your Authenticator app:
-            </div>
-
-            <!-- 6 Individual Digit Boxes (Setup confirmation) -->
-            <form @submit.prevent="submit" class="space-y-4">
-                <div class="flex justify-center gap-2" @paste="handlePaste">
+            <form @submit.prevent="submit" class="mt-6">
+                <p id="setup-code-label" class="text-sm font-semibold text-gray-900">Enter verification code</p>
+                <p id="setup-code-help" class="mt-1 text-sm text-gray-600">Enter the 6-digit code from your authenticator app.</p>
+                <div role="group" aria-labelledby="setup-code-label" aria-describedby="setup-code-help" class="mt-3 flex gap-2" @paste="handlePaste">
                     <input
                         v-for="(digit, idx) in digits"
                         :key="'setup-' + idx"
@@ -220,35 +210,36 @@ const cancel = () => {
                         inputmode="numeric"
                         maxlength="1"
                         autocomplete="off"
-                        class="h-12 w-11 rounded-lg border-2 border-gray-300 text-center font-mono text-2xl font-bold text-gray-800 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition shadow-sm"
+                        :aria-label="'Verification code digit ' + (idx + 1)"
+                        :aria-invalid="!!form.errors.code"
+                        :aria-describedby="form.errors.code ? 'setup-code-error' : undefined"
+                        class="h-11 w-9 rounded-sm border border-gray-400 text-center font-mono text-xl text-gray-900 focus:border-[#0067b8] focus:ring-1 focus:ring-[#0067b8] sm:w-11"
                         v-model="digits[idx]"
                         @input="handleInput(idx, $event)"
                         @keydown="handleKeyDown(idx, $event)"
                     />
                 </div>
 
-                <InputError class="text-center" :message="form.errors.code" />
+                <InputError id="setup-code-error" role="alert" class="mt-2" :message="form.errors.code" />
 
-                <div class="flex items-center justify-between pt-2">
+                <div class="mt-7 flex justify-end gap-3">
                     <button
                         type="button"
                         @click="cancel"
-                        class="text-xs text-gray-500 hover:text-gray-700 underline focus:outline-none"
+                        class="min-h-11 rounded-sm border border-gray-300 bg-gray-100 px-5 text-sm font-medium text-gray-900 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                     >
                         Cancel
                     </button>
-
                     <button
                         type="submit"
                         :disabled="form.processing || form.code.length !== 6"
-                        class="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-40 transition"
+                        class="min-h-11 rounded-sm bg-[#0067b8] px-5 text-sm font-medium text-white hover:bg-[#005a9e] focus:outline-none focus:ring-2 focus:ring-[#0067b8] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        <span>Confirm & Complete Setup</span>
+                        <span>{{ form.processing ? 'Verifying...' : 'Finish setup' }}</span>
                     </button>
                 </div>
             </form>
         </div>
-
         <!-- ============================================================== -->
         <!-- VIEW 2: SUBSEQUENT LOGINS (GitHub-Style Two-Factor Authentication Modal) -->
         <!-- ============================================================== -->
