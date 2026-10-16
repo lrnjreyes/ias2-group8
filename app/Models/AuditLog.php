@@ -24,10 +24,12 @@ class AuditLog extends Model
         return $this->belongsTo(User::class, 'actor_id');
     }
 
-    public static function record(Request $request, string $event, ?Model $subject = null, array $metadata = []): self
+    public static function record(Request $request, string $event, ?Model $subject = null, array $metadata = [], ?int $actorId = null): self
     {
+        $resolvedActorId = $actorId ?? $request->user()?->id ?? ($subject instanceof User ? $subject->id : null);
+
         return self::create([
-            'actor_id' => $request->user()?->id,
+            'actor_id' => $resolvedActorId,
             'event' => $event,
             'subject_type' => $subject ? $subject::class : null,
             'subject_id' => $subject?->getKey(),

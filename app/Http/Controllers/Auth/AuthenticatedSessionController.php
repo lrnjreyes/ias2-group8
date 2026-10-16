@@ -30,7 +30,18 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        $user = $request->authenticate();
+
+        if ($user->hasMfaEnabled()) {
+            $request->session()->put('auth.mfa.user_id', $user->id);
+            $request->session()->put('auth.mfa.remember', $request->boolean('remember'));
+
+            AuditLog::record($request, 'auth.mfa.challenged', $user);
+
+            return redirect()->route('mfa.challenge');
+        }
+
+        Auth::login($user, $request->boolean('remember'));
 
         $request->session()->regenerate();
         $request->session()->put('last_activity_at', now()->timestamp);

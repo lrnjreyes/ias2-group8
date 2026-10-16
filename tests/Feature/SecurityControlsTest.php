@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AuditLog;
 use App\Models\EmployeeRecord;
 use App\Models\User;
+use App\Support\Totp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
@@ -49,6 +50,83 @@ class SecurityControlsTest extends TestCase
         $response = $this->post('/login', ['email' => 'employee@example.test', 'password' => 'password']);
         $response->assertSessionHasErrors('email');
         $this->assertDatabaseHas('audit_logs', ['event' => 'auth.login.locked']);
+    }
+
+    public function test_login_with_mfa_enabled_redirects_to_mfa_challenge_and_records_audit_event(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'mfa-test@example.test',
+            'password' => bcrypt('ValidPassword!2026'),
+            'mfa_enabled' => true,
+            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => 'mfa-test@example.test',
+            'password' => 'ValidPassword!2026',
+        ]);
+
+        $response->assertRedirect('/mfa-challenge');
+        $this->assertGuest();
+        $this->assertEquals($user->id, session('auth.mfa.user_id'));
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $user->id,
+            'event' => 'auth.mfa.challenged',
+        ]);
+    }
+
+    public function test_invalid_mfa_code_is_rejected_and_audited(): void
+    {
+        $user = User::factory()->create([
+            'mfa_enabled' => true,
+            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
+        ]);
+
+        $response = $this->withSession(['auth.mfa.user_id' => $user->id])
+            ->post('/mfa-challenge', ['code' => '000000']);
+
+        $response->assertSessionHasErrors('code');
+        $this->assertGuest();
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $user->id,
+            'event' => 'auth.mfa.failed',
+        ]);
+    }
+
+    public function test_valid_mfa_code_authenticates_user_and_records_audit_events(): void
+    {
+        $user = User::factory()->create([
+            'mfa_enabled' => true,
+            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
+        ]);
+
+        $validCode = Totp::getCode('JBSWY3DPEHPK3PXP');
+
+        $response = $this->withSession(['auth.mfa.user_id' => $user->id])
+            ->post('/mfa-challenge', ['code' => $validCode]);
+
+        $response->assertRedirect('/dashboard');
+        $this->assertAuthenticatedAs($user);
+        $this->assertNull(session('auth.mfa.user_id'));
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $user->id,
+            'event' => 'auth.mfa.succeeded',
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'actor_id' => $user->id,
+            'event' => 'auth.login.succeeded',
+        ]);
+    }
+
+    public function test_mfa_cancel_clears_mfa_session_and_redirects_to_login(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->withSession(['auth.mfa.user_id' => $user->id])
+            ->post('/mfa-cancel');
+
+        $response->assertRedirect('/login');
+        $this->assertNull(session('auth.mfa.user_id'));
     }
 
     public function test_logout_invalidates_authenticated_session(): void
