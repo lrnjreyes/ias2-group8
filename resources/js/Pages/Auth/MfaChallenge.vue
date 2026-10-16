@@ -74,9 +74,6 @@ const handleInput = (index, event) => {
         digitInputs.value[index + 1]?.focus();
     }
 
-    if (form.code.length === 6) {
-        submit();
-    }
 };
 
 const handleKeyDown = (index, event) => {
@@ -111,7 +108,6 @@ const handlePaste = (event) => {
 
         if (pasted.length === 6) {
             digitInputs.value[5]?.focus();
-            submit();
         } else {
             digitInputs.value[pasted.length]?.focus();
         }

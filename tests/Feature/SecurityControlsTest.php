@@ -37,6 +37,31 @@ class SecurityControlsTest extends TestCase
         $this->actingAs($admin)->patch("/admin/employees/{$record->id}", ['department' => 'Security', 'position' => 'Security Analyst', 'leave_balance' => 9])->assertRedirect();
 
         $this->assertDatabaseHas('audit_logs', ['actor_id' => $admin->id, 'event' => 'employee_record.updated', 'subject_id' => $record->id]);
+
+        $log = AuditLog::where('event', 'employee_record.updated')->firstOrFail();
+        $this->assertSame('EMP-9001', $log->metadata['employee_number']);
+        $this->assertSame('Support', $log->metadata['changes']['department']['before']);
+        $this->assertSame('Security', $log->metadata['changes']['department']['after']);
+        $this->assertSame(10, $log->metadata['changes']['leave_balance']['before']);
+        $this->assertSame(9, $log->metadata['changes']['leave_balance']['after']);
+    }
+
+    public function test_saving_an_unchanged_employee_record_does_not_create_an_update_log(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $employee = User::factory()->create(['role' => 'employee']);
+        $record = EmployeeRecord::create(['user_id' => $employee->id, 'employee_number' => 'EMP-9002', 'department' => 'Support', 'position' => 'Analyst', 'hire_date' => '2025-01-01', 'leave_balance' => 10]);
+
+        $this->actingAs($admin)->patch("/admin/employees/{$record->id}", [
+            'department' => 'Support',
+            'position' => 'Analyst',
+            'leave_balance' => 10,
+        ])->assertRedirect();
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'event' => 'employee_record.updated',
+            'subject_id' => $record->id,
+        ]);
     }
 
     public function test_login_is_rate_limited_after_five_failures(): void

@@ -125,7 +125,7 @@ class MfaPromptController extends Controller
     }
 
     /**
-     * Reset the user's MFA confirmation so the QR code setup appears again.
+     * Reset MFA with a new secret so an old or exposed QR code cannot be reused.
      */
     public function reset(Request $request): RedirectResponse
     {
@@ -133,6 +133,7 @@ class MfaPromptController extends Controller
 
         if ($user) {
             $user->update([
+                'mfa_secret' => Totp::generateSecret(),
                 'mfa_confirmed_at' => null,
             ]);
 

@@ -27,12 +27,25 @@ class EmployeeController extends Controller
             'leave_balance' => ['required', 'integer', 'min:0', 'max:365'],
         ]);
 
-        $before = $employee->only(array_keys($validated));
-        $employee->update($validated);
-        AuditLog::record($request, 'employee_record.updated', $employee, [
-            'before' => $before,
-            'after' => $employee->only(array_keys($validated)),
-        ]);
+        $employee->fill($validated);
+
+        $changes = collect($employee->getDirty())
+            ->mapWithKeys(fn (mixed $after, string $field): array => [
+                $field => [
+                    'before' => $employee->getOriginal($field),
+                    'after' => $after,
+                ],
+            ])
+            ->all();
+
+        if ($changes !== []) {
+            $employee->save();
+
+            AuditLog::record($request, 'employee_record.updated', $employee, [
+                'employee_number' => $employee->employee_number,
+                'changes' => $changes,
+            ]);
+        }
 
         return back()->with('status', 'Employee record updated.');
     }
