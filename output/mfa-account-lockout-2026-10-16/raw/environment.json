@@ -1,0 +1,13 @@
+{
+    "test_started_at": "2026-10-16T18:45:30+08:00",
+    "audit_baseline_id": 13,
+    "account": "employee@example.test",
+    "base_url": "http://127.0.0.1:8000",
+    "throttle_key": "employee@example.test|127.0.0.1",
+    "cache_store": "database",
+    "source_head": "b111432a82eea9590edacd16baa176c29e44df1f",
+    "php_version": "8.5.11",
+    "laravel_version": "13.32.0",
+    "preparation": "Cleared only the demo account plus localhost-IP throttle key before the evidence sequence. Existing accounts and passwords were unchanged.",
+    "preliminary_capture_note": "Preliminary UI timing checks are excluded. Final screenshots are verified against audit events with IDs greater than audit_baseline_id."
+}

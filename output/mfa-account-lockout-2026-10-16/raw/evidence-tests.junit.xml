@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="Tests\Evidence\MfaLockoutEvidenceTest" file="C:\Users\Neon Felix\Documents\GitHub\ias2-group8\output\mfa-account-lockout-2026-10-16\raw\MfaLockoutEvidenceTest.php" tests="3" assertions="41" errors="0" failures="0" skipped="0" time="12.725093">
+    <testcase name="test_five_failures_block_the_next_request_even_with_the_correct_password" file="C:\Users\Neon Felix\Documents\GitHub\ias2-group8\output\mfa-account-lockout-2026-10-16\raw\MfaLockoutEvidenceTest.php" line="15" class="Tests\Evidence\MfaLockoutEvidenceTest" classname="Tests.Evidence.MfaLockoutEvidenceTest" assertions="26" time="10.860339"/>
+    <testcase name="test_lockout_expires_and_success_resets_the_failed_attempt_counter" file="C:\Users\Neon Felix\Documents\GitHub\ias2-group8\output\mfa-account-lockout-2026-10-16\raw\MfaLockoutEvidenceTest.php" line="37" class="Tests\Evidence\MfaLockoutEvidenceTest" classname="Tests.Evidence.MfaLockoutEvidenceTest" assertions="8" time="1.302430"/>
+    <testcase name="test_password_alone_currently_authenticates_without_an_mfa_challenge" file="C:\Users\Neon Felix\Documents\GitHub\ias2-group8\output\mfa-account-lockout-2026-10-16\raw\MfaLockoutEvidenceTest.php" line="56" class="Tests\Evidence\MfaLockoutEvidenceTest" classname="Tests.Evidence.MfaLockoutEvidenceTest" assertions="7" time="0.562324"/>
+  </testsuite>
+</testsuites>

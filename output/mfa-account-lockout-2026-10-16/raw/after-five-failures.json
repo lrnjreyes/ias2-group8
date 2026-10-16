@@ -1,0 +1,38 @@
+{
+    "captured_at": "2026-10-16T18:46:03+08:00",
+    "attempts": 5,
+    "is_limited": true,
+    "remaining_seconds": 45,
+    "events": [
+        {
+            "id": 14,
+            "event": "auth.login.failed",
+            "ip_address": "127.0.0.1",
+            "created_at": "2026-10-16T10:45:48.000000Z"
+        },
+        {
+            "id": 15,
+            "event": "auth.login.failed",
+            "ip_address": "127.0.0.1",
+            "created_at": "2026-10-16T10:45:50.000000Z"
+        },
+        {
+            "id": 16,
+            "event": "auth.login.failed",
+            "ip_address": "127.0.0.1",
+            "created_at": "2026-10-16T10:45:52.000000Z"
+        },
+        {
+            "id": 17,
+            "event": "auth.login.failed",
+            "ip_address": "127.0.0.1",
+            "created_at": "2026-10-16T10:45:53.000000Z"
+        },
+        {
+            "id": 18,
+            "event": "auth.login.failed",
+            "ip_address": "127.0.0.1",
+            "created_at": "2026-10-16T10:45:55.000000Z"
+        }
+    ]
+}

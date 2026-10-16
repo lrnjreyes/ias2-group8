@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="C:\Users\Neon Felix\Documents\GitHub\ias2-group8\phpunit.xml" tests="1" assertions="3" errors="0" failures="0" skipped="0" time="1.933035">
+    <testsuite name="Feature" tests="1" assertions="3" errors="0" failures="0" skipped="0" time="1.933035">
+      <testsuite name="Tests\Feature\SecurityControlsTest" file="C:\Users\Neon Felix\Documents\GitHub\ias2-group8\tests\Feature\SecurityControlsTest.php" tests="1" assertions="3" errors="0" failures="0" skipped="0" time="1.933035">
+        <testcase name="test_login_is_rate_limited_after_five_failures" file="C:\Users\Neon Felix\Documents\GitHub\ias2-group8\tests\Feature\SecurityControlsTest.php" line="41" class="Tests\Feature\SecurityControlsTest" classname="Tests.Feature.SecurityControlsTest" assertions="3" time="1.933035"/>
+      </testsuite>
+    </testsuite>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,732 @@
+FILE: app/Http/Requests/Auth/LoginRequest.php
+   1: <?php
+   2: 
+   3: namespace App\Http\Requests\Auth;
+   4: 
+   5: use App\Models\AuditLog;
+   6: use Illuminate\Auth\Events\Lockout;
+   7: use Illuminate\Contracts\Validation\ValidationRule;
+   8: use Illuminate\Foundation\Http\FormRequest;
+   9: use Illuminate\Support\Facades\Auth;
+  10: use Illuminate\Support\Facades\RateLimiter;
+  11: use Illuminate\Support\Str;
+  12: use Illuminate\Validation\ValidationException;
+  13: 
+  14: class LoginRequest extends FormRequest
+  15: {
+  16:     /**
+  17:      * Determine if the user is authorized to make this request.
+  18:      */
+  19:     public function authorize(): bool
+  20:     {
+  21:         return true;
+  22:     }
+  23: 
+  24:     /**
+  25:      * Get the validation rules that apply to the request.
+  26:      *
+  27:      * @return array<string, ValidationRule|array<mixed>|string>
+  28:      */
+  29:     public function rules(): array
+  30:     {
+  31:         return [
+  32:             'email' => ['required', 'string', 'email'],
+  33:             'password' => ['required', 'string'],
+  34:         ];
+  35:     }
+  36: 
+  37:     /**
+  38:      * Attempt to authenticate the request's credentials.
+  39:      *
+  40:      * @throws ValidationException
+  41:      */
+  42:     public function authenticate(): void
+  43:     {
+  44:         $this->ensureIsNotRateLimited();
+  45: 
+  46:         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+  47:             RateLimiter::hit($this->throttleKey());
+  48: 
+  49:             AuditLog::record($this, 'auth.login.failed');
+  50: 
+  51:             throw ValidationException::withMessages([
+  52:                 'email' => trans('auth.failed'),
+  53:             ]);
+  54:         }
+  55: 
+  56:         RateLimiter::clear($this->throttleKey());
+  57:     }
+  58: 
+  59:     /**
+  60:      * Ensure the login request is not rate limited.
+  61:      *
+  62:      * @throws ValidationException
+  63:      */
+  64:     public function ensureIsNotRateLimited(): void
+  65:     {
+  66:         if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+  67:             return;
+  68:         }
+  69: 
+  70:         event(new Lockout($this));
+  71: 
+  72:         AuditLog::record($this, 'auth.login.locked');
+  73: 
+  74:         $seconds = RateLimiter::availableIn($this->throttleKey());
+  75: 
+  76:         throw ValidationException::withMessages([
+  77:             'email' => trans('auth.throttle', [
+  78:                 'seconds' => $seconds,
+  79:                 'minutes' => ceil($seconds / 60),
+  80:             ]),
+  81:         ]);
+  82:     }
+  83: 
+  84:     /**
+  85:      * Get the rate limiting throttle key for the request.
+  86:      */
+  87:     public function throttleKey(): string
+  88:     {
+  89:         return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+  90:     }
+  91: }
+
+FILE: app/Http/Controllers/Auth/AuthenticatedSessionController.php
+   1: <?php
+   2: 
+   3: namespace App\Http\Controllers\Auth;
+   4: 
+   5: use App\Http\Controllers\Controller;
+   6: use App\Http\Requests\Auth\LoginRequest;
+   7: use App\Models\AuditLog;
+   8: use Illuminate\Http\RedirectResponse;
+   9: use Illuminate\Http\Request;
+  10: use Illuminate\Support\Facades\Auth;
+  11: use Illuminate\Support\Facades\Route;
+  12: use Inertia\Inertia;
+  13: use Inertia\Response;
+  14: 
+  15: class AuthenticatedSessionController extends Controller
+  16: {
+  17:     /**
+  18:      * Display the login view.
+  19:      */
+  20:     public function create(): Response
+  21:     {
+  22:         return Inertia::render('Auth/Login', [
+  23:             'canResetPassword' => Route::has('password.request'),
+  24:             'status' => session('status'),
+  25:         ]);
+  26:     }
+  27: 
+  28:     /**
+  29:      * Handle an incoming authentication request.
+  30:      */
+  31:     public function store(LoginRequest $request): RedirectResponse
+  32:     {
+  33:         $request->authenticate();
+  34: 
+  35:         $request->session()->regenerate();
+  36:         $request->session()->put('last_activity_at', now()->timestamp);
+  37: 
+  38:         AuditLog::record($request, 'auth.login.succeeded');
+  39: 
+  40:         return redirect()->intended(route('dashboard', absolute: false));
+  41:     }
+  42: 
+  43:     /**
+  44:      * Destroy an authenticated session.
+  45:      */
+  46:     public function destroy(Request $request): RedirectResponse
+  47:     {
+  48:         AuditLog::record($request, 'auth.logout');
+  49: 
+  50:         Auth::guard('web')->logout();
+  51: 
+  52:         $request->session()->invalidate();
+  53: 
+  54:         $request->session()->regenerateToken();
+  55: 
+  56:         return redirect('/');
+  57:     }
+  58: 
+  59:     /**
+  60:      * End an inactive session and record the timeout event.
+  61:      */
+  62:     public function timeout(Request $request): RedirectResponse
+  63:     {
+  64:         AuditLog::record($request, 'auth.session.expired', metadata: [
+  65:             'idle_minutes' => (int) config('session.idle_timeout', 15),
+  66:         ]);
+  67: 
+  68:         Auth::guard('web')->logout();
+  69: 
+  70:         $request->session()->invalidate();
+  71:         $request->session()->regenerateToken();
+  72: 
+  73:         return redirect()->route('login')->with('status', 'Your session expired after 15 minutes of inactivity.');
+  74:     }
+  75: }
+
+FILE: app/Models/User.php
+   1: <?php
+   2: 
+   3: namespace App\Models;
+   4: 
+   5: // use Illuminate\Contracts\Auth\MustVerifyEmail;
+   6: use Database\Factories\UserFactory;
+   7: use Illuminate\Database\Eloquent\Attributes\Fillable;
+   8: use Illuminate\Database\Eloquent\Attributes\Hidden;
+   9: use Illuminate\Database\Eloquent\Factories\HasFactory;
+  10: use Illuminate\Foundation\Auth\User as Authenticatable;
+  11: use Illuminate\Notifications\Notifiable;
+  12: 
+  13: #[Fillable(['name', 'email', 'role', 'password'])]
+  14: #[Hidden(['password', 'remember_token'])]
+  15: class User extends Authenticatable
+  16: {
+  17:     /** @use HasFactory<UserFactory> */
+  18:     use HasFactory, Notifiable;
+  19: 
+  20:     public function employeeRecord()
+  21:     {
+  22:         return $this->hasOne(EmployeeRecord::class);
+  23:     }
+  24: 
+  25:     /**
+  26:      * Get the attributes that should be cast.
+  27:      *
+  28:      * @return array<string, string>
+  29:      */
+  30:     protected function casts(): array
+  31:     {
+  32:         return [
+  33:             'email_verified_at' => 'datetime',
+  34:             'password' => 'hashed',
+  35:         ];
+  36:     }
+  37: }
+
+FILE: routes/auth.php
+   1: <?php
+   2: 
+   3: use App\Http\Controllers\Auth\AuthenticatedSessionController;
+   4: use App\Http\Controllers\Auth\ConfirmablePasswordController;
+   5: use App\Http\Controllers\Auth\EmailVerificationNotificationController;
+   6: use App\Http\Controllers\Auth\EmailVerificationPromptController;
+   7: use App\Http\Controllers\Auth\NewPasswordController;
+   8: use App\Http\Controllers\Auth\PasswordController;
+   9: use App\Http\Controllers\Auth\PasswordResetLinkController;
+  10: use App\Http\Controllers\Auth\RegisteredUserController;
+  11: use App\Http\Controllers\Auth\VerifyEmailController;
+  12: use Illuminate\Support\Facades\Route;
+  13: 
+  14: Route::middleware('guest')->group(function () {
+  15:     Route::get('register', [RegisteredUserController::class, 'create'])
+  16:         ->name('register');
+  17: 
+  18:     Route::post('register', [RegisteredUserController::class, 'store']);
+  19: 
+  20:     Route::get('login', [AuthenticatedSessionController::class, 'create'])
+  21:         ->name('login');
+  22: 
+  23:     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+  24: 
+  25:     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
+  26:         ->name('password.request');
+  27: 
+  28:     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+  29:         ->name('password.email');
+  30: 
+  31:     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
+  32:         ->name('password.reset');
+  33: 
+  34:     Route::post('reset-password', [NewPasswordController::class, 'store'])
+  35:         ->name('password.store');
+  36: });
+  37: 
+  38: Route::middleware('auth')->group(function () {
+  39:     Route::get('verify-email', EmailVerificationPromptController::class)
+  40:         ->name('verification.notice');
+  41: 
+  42:     Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
+  43:         ->middleware(['signed', 'throttle:6,1'])
+  44:         ->name('verification.verify');
+  45: 
+  46:     Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
+  47:         ->middleware('throttle:6,1')
+  48:         ->name('verification.send');
+  49: 
+  50:     Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
+  51:         ->name('password.confirm');
+  52: 
+  53:     Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
+  54: 
+  55:     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
+  56: 
+  57:     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
+  58:         ->name('logout');
+  59: 
+  60:     Route::post('session/timeout', [AuthenticatedSessionController::class, 'timeout'])
+  61:         ->name('session.timeout');
+  62: });
+
+FILE: routes/web.php
+   1: <?php
+   2: 
+   3: use App\Http\Controllers\Admin\AuditLogController;
+   4: use App\Http\Controllers\Admin\EmployeeController;
+   5: use App\Http\Controllers\DashboardController;
+   6: use App\Http\Controllers\ProfileController;
+   7: use Illuminate\Foundation\Application;
+   8: use Illuminate\Support\Facades\Route;
+   9: use Inertia\Inertia;
+  10: 
+  11: Route::get('/', function () {
+  12:     return Inertia::render('Welcome', [
+  13:         'canLogin' => Route::has('login'),
+  14:         'canRegister' => Route::has('register'),
+  15:         'laravelVersion' => Application::VERSION,
+  16:         'phpVersion' => PHP_VERSION,
+  17:     ]);
+  18: });
+  19: 
+  20: Route::get('/dashboard', DashboardController::class)
+  21:     ->middleware(['auth', 'verified'])->name('dashboard');
+  22: 
+  23: Route::middleware('auth')->group(function () {
+  24:     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+  25:     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+  26:     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+  27: });
+  28: 
+  29: Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+  30:     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
+  31:     Route::patch('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+  32:     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
+  33: });
+  34: 
+  35: require __DIR__.'/auth.php';
+
+FILE: tests/Feature/SecurityControlsTest.php
+   1: <?php
+   2: 
+   3: namespace Tests\Feature;
+   4: 
+   5: use App\Models\AuditLog;
+   6: use App\Models\EmployeeRecord;
+   7: use App\Models\User;
+   8: use Illuminate\Foundation\Testing\RefreshDatabase;
+   9: use Illuminate\Support\Facades\RateLimiter;
+  10: use Tests\TestCase;
+  11: 
+  12: class SecurityControlsTest extends TestCase
+  13: {
+  14:     use RefreshDatabase;
+  15: 
+  16:     public function test_employee_cannot_access_admin_pages(): void
+  17:     {
+  18:         $employee = User::factory()->create(['role' => 'employee']);
+  19:         $this->actingAs($employee)->get('/admin/employees')->assertForbidden();
+  20:         $this->actingAs($employee)->get('/admin/audit-logs')->assertForbidden();
+  21:     }
+  22: 
+  23:     public function test_admin_can_access_admin_pages(): void
+  24:     {
+  25:         $admin = User::factory()->create(['role' => 'admin']);
+  26:         $this->actingAs($admin)->get('/admin/employees')->assertOk();
+  27:         $this->actingAs($admin)->get('/admin/audit-logs')->assertOk();
+  28:     }
+  29: 
+  30:     public function test_employee_update_is_audited(): void
+  31:     {
+  32:         $admin = User::factory()->create(['role' => 'admin']);
+  33:         $employee = User::factory()->create(['role' => 'employee']);
+  34:         $record = EmployeeRecord::create(['user_id' => $employee->id, 'employee_number' => 'EMP-9001', 'department' => 'Support', 'position' => 'Analyst', 'hire_date' => '2025-01-01', 'leave_balance' => 10]);
+  35: 
+  36:         $this->actingAs($admin)->patch("/admin/employees/{$record->id}", ['department' => 'Security', 'position' => 'Security Analyst', 'leave_balance' => 9])->assertRedirect();
+  37: 
+  38:         $this->assertDatabaseHas('audit_logs', ['actor_id' => $admin->id, 'event' => 'employee_record.updated', 'subject_id' => $record->id]);
+  39:     }
+  40: 
+  41:     public function test_login_is_rate_limited_after_five_failures(): void
+  42:     {
+  43:         RateLimiter::clear('employee@example.test|127.0.0.1');
+  44:         User::factory()->create(['email' => 'employee@example.test']);
+  45:         for ($attempt = 0; $attempt < 5; $attempt++) {
+  46:             $this->post('/login', ['email' => 'employee@example.test', 'password' => 'wrong-password']);
+  47:         }
+  48: 
+  49:         $response = $this->post('/login', ['email' => 'employee@example.test', 'password' => 'password']);
+  50:         $response->assertSessionHasErrors('email');
+  51:         $this->assertDatabaseHas('audit_logs', ['event' => 'auth.login.locked']);
+  52:     }
+  53: 
+  54:     public function test_logout_invalidates_authenticated_session(): void
+  55:     {
+  56:         $user = User::factory()->create();
+  57:         $this->actingAs($user)->post('/logout')->assertRedirect('/');
+  58:         $this->assertGuest();
+  59:         $this->get('/dashboard')->assertRedirect('/login');
+  60:         $this->assertTrue(AuditLog::where('event', 'auth.logout')->exists());
+  61:     }
+  62: 
+  63:     public function test_timeout_endpoint_records_expired_session_and_logs_user_out(): void
+  64:     {
+  65:         $user = User::factory()->create();
+  66: 
+  67:         $this->actingAs($user)
+  68:             ->post('/session/timeout')
+  69:             ->assertRedirect('/login');
+  70: 
+  71:         $this->assertGuest();
+  72:         $this->assertDatabaseHas('audit_logs', [
+  73:             'actor_id' => $user->id,
+  74:             'event' => 'auth.session.expired',
+  75:         ]);
+  76:     }
+  77: 
+  78:     public function test_stale_authenticated_session_is_ended_and_audited(): void
+  79:     {
+  80:         $user = User::factory()->create();
+  81: 
+  82:         $this->actingAs($user)
+  83:             ->withSession(['last_activity_at' => now()->subMinutes(16)->timestamp])
+  84:             ->get('/dashboard')
+  85:             ->assertRedirect('/login');
+  86: 
+  87:         $this->assertGuest();
+  88:         $this->assertDatabaseHas('audit_logs', [
+  89:             'actor_id' => $user->id,
+  90:             'event' => 'auth.session.expired',
+  91:         ]);
+  92:     }
+  93: }
+
+FILE: vendor/laravel/framework/src/Illuminate/Cache/RateLimiter.php
+   1: <?php
+   2: 
+   3: namespace Illuminate\Cache;
+   4: 
+   5: use Closure;
+   6: use Illuminate\Contracts\Cache\Repository as Cache;
+   7: use Illuminate\Redis\Connections\PhpRedisConnection;
+   8: use Illuminate\Support\Collection;
+   9: use Illuminate\Support\InteractsWithTime;
+  10: use Illuminate\Support\Traits\Macroable;
+  11: 
+  12: use function Illuminate\Support\enum_value;
+  13: 
+  14: class RateLimiter
+  15: {
+  16:     use InteractsWithTime, Macroable;
+  17: 
+  18:     /**
+  19:      * The cache store implementation.
+  20:      *
+  21:      * @var \Illuminate\Contracts\Cache\Repository
+  22:      */
+  23:     protected $cache;
+  24: 
+  25:     /**
+  26:      * The configured limit object resolvers.
+  27:      *
+  28:      * @var array
+  29:      */
+  30:     protected $limiters = [];
+  31: 
+  32:     /**
+  33:      * Create a new rate limiter instance.
+  34:      *
+  35:      * @param  \Illuminate\Contracts\Cache\Repository  $cache
+  36:      */
+  37:     public function __construct(Cache $cache)
+  38:     {
+  39:         $this->cache = $cache;
+  40:     }
+  41: 
+  42:     /**
+  43:      * Register a named rate limiter configuration.
+  44:      *
+  45:      * @param  \UnitEnum|string  $name
+  46:      * @param  \Closure  $callback
+  47:      * @return $this
+  48:      */
+  49:     public function for($name, Closure $callback)
+  50:     {
+  51:         $resolvedName = $this->resolveLimiterName($name);
+  52: 
+  53:         $this->limiters[$resolvedName] = $callback;
+  54: 
+  55:         return $this;
+  56:     }
+  57: 
+  58:     /**
+  59:      * Get the given named rate limiter.
+  60:      *
+  61:      * @param  \UnitEnum|string  $name
+  62:      * @return \Closure|null
+  63:      */
+  64:     public function limiter($name)
+  65:     {
+  66:         $resolvedName = $this->resolveLimiterName($name);
+  67: 
+  68:         $limiter = $this->limiters[$resolvedName] ?? null;
+  69: 
+  70:         if (! is_callable($limiter)) {
+  71:             return;
+  72:         }
+  73: 
+  74:         return function (...$args) use ($limiter) {
+  75:             $result = $limiter(...$args);
+  76: 
+  77:             if (! is_array($result)) {
+  78:                 return $result;
+  79:             }
+  80: 
+  81:             $duplicates = (new Collection($result))->duplicates('key');
+  82: 
+  83:             if ($duplicates->isEmpty()) {
+  84:                 return $result;
+  85:             }
+  86: 
+  87:             foreach ($result as $limit) {
+  88:                 if ($duplicates->contains($limit->key)) {
+  89:                     $limit->key = $limit->fallbackKey();
+  90:                 }
+  91:             }
+  92: 
+  93:             return $result;
+  94:         };
+  95:     }
+  96: 
+  97:     /**
+  98:      * Attempts to execute a callback if it's not limited.
+  99:      *
+ 100:      * @param  string  $key
+ 101:      * @param  int  $maxAttempts
+ 102:      * @param  \Closure  $callback
+ 103:      * @param  \DateTimeInterface|\DateInterval|int  $decaySeconds
+ 104:      * @return mixed
+ 105:      */
+ 106:     public function attempt($key, $maxAttempts, Closure $callback, $decaySeconds = 60)
+ 107:     {
+ 108:         if ($this->tooManyAttempts($key, $maxAttempts)) {
+ 109:             return false;
+ 110:         }
+ 111: 
+ 112:         if (is_null($result = $callback())) {
+ 113:             $result = true;
+ 114:         }
+ 115: 
+ 116:         return tap($result, function () use ($key, $decaySeconds) {
+ 117:             $this->hit($key, $decaySeconds);
+ 118:         });
+ 119:     }
+ 120: 
+ 121:     /**
+ 122:      * Determine if the given key has been "accessed" too many times.
+ 123:      *
+ 124:      * @param  string  $key
+ 125:      * @param  int  $maxAttempts
+ 126:      * @return bool
+ 127:      */
+ 128:     public function tooManyAttempts($key, $maxAttempts)
+ 129:     {
+ 130:         if ($this->attempts($key) >= $maxAttempts) {
+ 131:             if ($this->cache->has($this->cleanRateLimiterKey($key).':timer')) {
+ 132:                 return true;
+ 133:             }
+ 134: 
+ 135:             $this->resetAttempts($key);
+ 136:         }
+ 137: 
+ 138:         return false;
+ 139:     }
+ 140: 
+ 141:     /**
+ 142:      * Increment (by 1) the counter for a given key for a given decay time.
+ 143:      *
+ 144:      * @param  string  $key
+ 145:      * @param  \DateTimeInterface|\DateInterval|int  $decaySeconds
+ 146:      * @return int
+ 147:      */
+ 148:     public function hit($key, $decaySeconds = 60)
+ 149:     {
+ 150:         return $this->increment($key, $decaySeconds);
+ 151:     }
+ 152: 
+ 153:     /**
+ 154:      * Increment the counter for a given key for a given decay time by a given amount.
+ 155:      *
+ 156:      * @param  string  $key
+ 157:      * @param  \DateTimeInterface|\DateInterval|int  $decaySeconds
+ 158:      * @param  int  $amount
+ 159:      * @return int
+ 160:      */
+ 161:     public function increment($key, $decaySeconds = 60, $amount = 1)
+ 162:     {
+ 163:         $key = $this->cleanRateLimiterKey($key);
+ 164: 
+ 165:         $this->cache->add(
+ 166:             $key.':timer', $this->availableAt($decaySeconds), $decaySeconds
+ 167:         );
+ 168: 
+ 169:         $added = $this->withoutSerializationOrCompression(
+ 170:             fn () => $this->cache->add($key, 0, $decaySeconds)
+ 171:         );
+ 172: 
+ 173:         $hits = (int) $this->cache->increment($key, $amount);
+ 174: 
+ 175:         if (! $added && $hits == $amount) {
+ 176:             $this->withoutSerializationOrCompression(
+ 177:                 fn () => $this->cache->put($key, $amount, $decaySeconds)
+ 178:             );
+ 179:         }
+ 180: 
+ 181:         return $hits;
+ 182:     }
+ 183: 
+ 184:     /**
+ 185:      * Decrement the counter for a given key for a given decay time by a given amount.
+ 186:      *
+ 187:      * @param  string  $key
+ 188:      * @param  \DateTimeInterface|\DateInterval|int  $decaySeconds
+ 189:      * @param  int  $amount
+ 190:      * @return int
+ 191:      */
+ 192:     public function decrement($key, $decaySeconds = 60, $amount = 1)
+ 193:     {
+ 194:         return $this->increment($key, $decaySeconds, $amount * -1);
+ 195:     }
+ 196: 
+ 197:     /**
+ 198:      * Get the number of attempts for the given key.
+ 199:      *
+ 200:      * @param  string  $key
+ 201:      * @return mixed
+ 202:      */
+ 203:     public function attempts($key)
+ 204:     {
+ 205:         $key = $this->cleanRateLimiterKey($key);
+ 206: 
+ 207:         return $this->withoutSerializationOrCompression(fn () => $this->cache->get($key, 0));
+ 208:     }
+ 209: 
+ 210:     /**
+ 211:      * Reset the number of attempts for the given key.
+ 212:      *
+ 213:      * @param  string  $key
+ 214:      * @return bool
+ 215:      */
+ 216:     public function resetAttempts($key)
+ 217:     {
+ 218:         $key = $this->cleanRateLimiterKey($key);
+ 219: 
+ 220:         return $this->cache->forget($key);
+ 221:     }
+ 222: 
+ 223:     /**
+ 224:      * Get the number of retries left for the given key.
+ 225:      *
+ 226:      * @param  string  $key
+ 227:      * @param  int  $maxAttempts
+ 228:      * @return int
+ 229:      */
+ 230:     public function remaining($key, $maxAttempts)
+ 231:     {
+ 232:         $key = $this->cleanRateLimiterKey($key);
+ 233: 
+ 234:         $attempts = $this->attempts($key);
+ 235: 
+ 236:         return max(0, $maxAttempts - $attempts);
+ 237:     }
+ 238: 
+ 239:     /**
+ 240:      * Get the number of retries left for the given key.
+ 241:      *
+ 242:      * @param  string  $key
+ 243:      * @param  int  $maxAttempts
+ 244:      * @return int
+ 245:      */
+ 246:     public function retriesLeft($key, $maxAttempts)
+ 247:     {
+ 248:         return $this->remaining($key, $maxAttempts);
+ 249:     }
+ 250: 
+ 251:     /**
+ 252:      * Clear the hits and lockout timer for the given key.
+ 253:      *
+ 254:      * @param  string  $key
+ 255:      * @return void
+ 256:      */
+ 257:     public function clear($key)
+ 258:     {
+ 259:         $key = $this->cleanRateLimiterKey($key);
+ 260: 
+ 261:         $this->resetAttempts($key);
+ 262: 
+ 263:         $this->cache->forget($key.':timer');
+ 264:     }
+ 265: 
+ 266:     /**
+ 267:      * Get the number of seconds until the "key" is accessible again.
+ 268:      *
+ 269:      * @param  string  $key
+ 270:      * @return int
+ 271:      */
+ 272:     public function availableIn($key)
+ 273:     {
+ 274:         $key = $this->cleanRateLimiterKey($key);
+ 275: 
+ 276:         return max(0, $this->cache->get($key.':timer') - $this->currentTime());
+ 277:     }
+ 278: 
+ 279:     /**
+ 280:      * Clean the rate limiter key from unicode characters.
+ 281:      *
+ 282:      * @param  string  $key
+ 283:      * @return string
+ 284:      */
+ 285:     public function cleanRateLimiterKey($key)
+ 286:     {
+ 287:         return preg_replace('/&([a-z])[a-z]+;/i', '$1', htmlentities($key));
+ 288:     }
+ 289: 
+ 290:     /**
+ 291:      * Execute the given callback without serialization or compression when applicable.
+ 292:      *
+ 293:      * @template TReturn
+ 294:      *
+ 295:      * @param  (callable(): TReturn)  $callback
+ 296:      * @return TReturn
+ 297:      */
+ 298:     protected function withoutSerializationOrCompression(callable $callback)
+ 299:     {
+ 300:         $store = $this->cache->getStore();
+ 301: 
+ 302:         if (! $store instanceof RedisStore) {
+ 303:             return $callback();
+ 304:         }
+ 305: 
+ 306:         $connection = $store->connection();
+ 307: 
+ 308:         if (! $connection instanceof PhpRedisConnection) {
+ 309:             return $callback();
+ 310:         }
+ 311: 
+ 312:         return $connection->withoutSerializationOrCompression($callback);
+ 313:     }
+ 314: 
+ 315:     /**
+ 316:      * Resolve the rate limiter name.
+ 317:      *
+ 318:      * @param  \UnitEnum|string  $name
+ 319:      * @return string
+ 320:      */
+ 321:     private function resolveLimiterName($name): string
+ 322:     {
+ 323:         return (string) enum_value($name);
+ 324:     }
+ 325: }
+

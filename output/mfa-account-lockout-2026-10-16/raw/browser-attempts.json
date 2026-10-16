@@ -1,0 +1,63 @@
+[
+  {
+    "attempt": 1,
+    "kind": "incorrect_password",
+    "timestamp": "2026-10-16T10:45:49.757Z",
+    "url": "http://127.0.0.1:8000/login",
+    "visible_message": "These credentials do not match our records.",
+    "screenshot": "screenshots/01-failed-attempt-1.jpg",
+    "snapshot": "Browser tab: 1, Title: \"Log in - IAS2 Employee Portal\", URL: \"http://127.0.0.1:8000/login\".\n1 AXWebArea Log in - IAS2 Employee Portal, URL: 127.0.0.1:8000/login\n\t2 container app\n\t\t3 link 127.0.0.1:8000/\n\t\t4 container\n\t\t\t5 text Email\n\t\t\t6 text field (settable) Email, Value: <redacted>\n\t\t\t13 text These credentials do not match our records. Password\n\t\t\t8 text field (settable) Password\n\t\t\t9 checkbox (settable, integer) Description: Remember me, Value: 0\n\t\t\t10 text Remember me\n\t\t\t11 link Description: Forgot your password?, Value: 127.0.0.1:8000/forgot-password\n\t\t\t12 button LOG IN\n\nThe focused UI element is 1 AXWebArea Log in - IAS2 Employee Portal, URL: 127.0.0.1:8000/login"
+  },
+  {
+    "attempt": 2,
+    "kind": "incorrect_password",
+    "timestamp": "2026-10-16T10:45:51.225Z",
+    "url": "http://127.0.0.1:8000/login",
+    "visible_message": "These credentials do not match our records.",
+    "screenshot": "screenshots/02-failed-attempt-2.jpg",
+    "snapshot": "Browser tab: 1, Title: \"Log in - IAS2 Employee Portal\", URL: \"http://127.0.0.1:8000/login\".\n1 AXWebArea Log in - IAS2 Employee Portal, URL: 127.0.0.1:8000/login\n\t2 container app\n\t\t3 link 127.0.0.1:8000/\n\t\t4 container\n\t\t\t5 text Email\n\t\t\t6 text field (settable) Email, Value: <redacted>\n\t\t\t13 text These credentials do not match our records. Password\n\t\t\t8 text field (settable) Password\n\t\t\t9 checkbox (settable, integer) Description: Remember me, Value: 0\n\t\t\t10 text Remember me\n\t\t\t11 link Description: Forgot your password?, Value: 127.0.0.1:8000/forgot-password\n\t\t\t12 button LOG IN\n\nThe focused UI element is 1 AXWebArea Log in - IAS2 Employee Portal, URL: 127.0.0.1:8000/login"
+  },
+  {
+    "attempt": 3,
+    "kind": "incorrect_password",
+    "timestamp": "2026-10-16T10:45:52.681Z",
+    "url": "http://127.0.0.1:8000/login",
+    "visible_message": "These credentials do not match our records.",
+    "screenshot": "screenshots/03-failed-attempt-3.jpg",
+    "snapshot": "Browser tab: 1, Title: \"Log in - IAS2 Employee Portal\", URL: \"http://127.0.0.1:8000/login\".\n1 AXWebArea Log in - IAS2 Employee Portal, URL: 127.0.0.1:8000/login\n\t2 container app\n\t\t3 link 127.0.0.1:8000/\n\t\t4 container\n\t\t\t5 text Email\n\t\t\t6 text field (settable) Email, Value: <redacted>\n\t\t\t13 text These credentials do not match our records. Password\n\t\t\t8 text field (settable) Password\n\t\t\t9 checkbox (settable, integer) Description: Remember me, Value: 0\n\t\t\t10 text Remember me\n\t\t\t11 link Description: Forgot your password?, Value: 127.0.0.1:8000/forgot-password\n\t\t\t12 button LOG IN\n\nThe focused UI element is 1 AXWebArea Log in - IAS2 Employee Portal, URL: 127.0.0.1:8000/login"
+  },
+  {
+    "attempt": 4,
+    "kind": "incorrect_password",
+    "timestamp": "2026-10-16T10:45:54.146Z",
+    "url": "http://127.0.0.1:8000/login",
+    "visible_message": "These credentials do not match our records.",
+    "screenshot": "screenshots/04-failed-attempt-4.jpg",
+    "snapshot": "Browser tab: 1, Title: \"Log in - IAS2 Employee Portal\", URL: \"http://127.0.0.1:8000/login\".\n1 AXWebArea Log in - IAS2 Employee Portal, URL: 127.0.0.1:8000/login\n\t2 container app\n\t\t3 link 127.0.0.1:8000/\n\t\t4 container\n\t\t\t5 text Email\n\t\t\t6 text field (settable) Email, Value: <redacted>\n\t\t\t13 text These credentials do not match our records. Password\n\t\t\t8 text field (settable) Password\n\t\t\t9 checkbox (settable, integer) Description: Remember me, Value: 0\n\t\t\t10 text Remember me\n\t\t\t11 link Description: Forgot your password?, Value: 127.0.0.1:8000/forgot-password\n\t\t\t12 button LOG IN\n\nThe focused UI element is 1 AXWebArea Log in - IAS2 Employee Portal, URL: 127.0.0.1:8000/login"
+  },
+  {
+    "attempt": 5,
+    "kind": "incorrect_password",
+    "timestamp": "2026-10-16T10:45:55.578Z",
+    "url": "http://127.0.0.1:8000/login",
+    "visible_message": "These credentials do not match our records.",
+    "screenshot": "screenshots/05-failed-attempt-5.jpg",
+    "snapshot": "Browser tab: 1, Title: \"Log in - IAS2 Employee Portal\", URL: \"http://127.0.0.1:8000/login\".\n1 AXWebArea Log in - IAS2 Employee Portal, URL: 127.0.0.1:8000/login\n\t2 container app\n\t\t3 link 127.0.0.1:8000/\n\t\t4 container\n\t\t\t5 text Email\n\t\t\t6 text field (settable) Email, Value: <redacted>\n\t\t\t13 text These credentials do not match our records. Password\n\t\t\t8 text field (settable) Password\n\t\t\t9 checkbox (settable, integer) Description: Remember me, Value: 0\n\t\t\t10 text Remember me\n\t\t\t11 link Description: Forgot your password?, Value: 127.0.0.1:8000/forgot-password\n\t\t\t12 button LOG IN\n\nThe focused UI element is 1 AXWebArea Log in - IAS2 Employee Portal, URL: 127.0.0.1:8000/login"
+  },
+  {
+    "attempt": 6,
+    "kind": "correct_password_during_lockout",
+    "timestamp": "2026-10-16T10:46:09.936Z",
+    "url": "http://127.0.0.1:8000/login",
+    "visible_message": "Too many login attempts. Please try again in 39 seconds.",
+    "screenshot": "screenshots/06-correct-password-blocked-by-lockout.jpg"
+  },
+  {
+    "attempt": 7,
+    "kind": "correct_password_after_natural_expiry",
+    "timestamp": "2026-10-16T10:47:13.952Z",
+    "url": "http://127.0.0.1:8000/dashboard",
+    "visible_message": "Dashboard reached using only email and password. No second-factor challenge was shown.",
+    "screenshot": "screenshots/07-after-expiry-password-only-dashboard.jpg"
+  }
+]

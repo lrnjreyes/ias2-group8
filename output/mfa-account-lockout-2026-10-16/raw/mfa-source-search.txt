@@ -1,0 +1,3 @@
+SEARCH: mfa|two.factor|two_factor|totp|one.time.password|recovery.code|fortify|webauthn|passkey
+SCOPE: app routes config database resources/js tests composer.json composer.lock package.json
+No matches found in application, routes, config, database, frontend, tests, or dependency manifests/lockfile for the searched MFA indicators.

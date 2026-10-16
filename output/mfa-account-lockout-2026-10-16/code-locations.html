@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MFA + Account Lockout Evidence</title><style>body{margin:0;background:#fff;color:#18212b;font:16px/1.5 Arial,sans-serif}main{max-width:1100px;margin:0 auto;padding:32px}h1{font-size:30px;line-height:1.2;margin:0 0 12px}h2{font-size:19px;line-height:1.35;margin:28px 0 10px;overflow-wrap:anywhere}p{margin:10px 0}.meta{font-size:14px;color:#47515c}.status{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:22px 0}.status p{margin:0;padding:16px;border:1px solid #bcc7cf}.pass{color:#116337}.fail{color:#a02121}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border:1px solid #b9c3cb;padding:10px;text-align:left;vertical-align:top}th{background:#eef2f5}code,pre{font-family:Consolas,monospace}code{font-size:13px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f4f6;border:1px solid #c7cfd6;padding:14px;font-size:13px;line-height:1.5}.gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.gallery img{width:100%;height:auto;border:1px solid #b9c3cb}.gallery figure{margin:0}.gallery figcaption{font-size:13px;margin:6px 0 16px}a{color:#1456a0}.note{border-left:4px solid #a02121;padding:10px 16px;background:#fff3f1}.small{font-size:13px}footer{border-top:1px solid #b9c3cb;margin-top:24px;padding-top:14px;font-size:13px}@media(max-width:650px){main{padding:18px}.gallery{grid-template-columns:1fr 1fr}.status{grid-template-columns:1fr}}</style><main><h1>Actual code locations</h1><p class="meta">Source listing from the audited local build. Original file paths and line numbers are retained.<br>Commit: <code>b111432a82eea9590edacd16baa176c29e44df1f</code></p><h2>app/Http/Requests/Auth/LoginRequest.php:42</h2><pre> 42      public function authenticate(): void
+ 43      {
+ 44          $this-&gt;ensureIsNotRateLimited();
+ 45  
+ 46          if (! Auth::attempt($this-&gt;only(&#39;email&#39;, &#39;password&#39;), $this-&gt;boolean(&#39;remember&#39;))) {
+ 47              RateLimiter::hit($this-&gt;throttleKey());
+ 48  
+ 49              AuditLog::record($this, &#39;auth.login.failed&#39;);
+ 50  
+ 51              throw ValidationException::withMessages([
+ 52                  &#39;email&#39; =&gt; trans(&#39;auth.failed&#39;),
+ 53              ]);
+ 54          }
+ 55  
+ 56          RateLimiter::clear($this-&gt;throttleKey());</pre><h2>app/Http/Requests/Auth/LoginRequest.php:64</h2><pre> 64      public function ensureIsNotRateLimited(): void
+ 65      {
+ 66          if (! RateLimiter::tooManyAttempts($this-&gt;throttleKey(), 5)) {
+ 67              return;
+ 68          }
+ 69  
+ 70          event(new Lockout($this));
+ 71  
+ 72          AuditLog::record($this, &#39;auth.login.locked&#39;);
+ 73  
+ 74          $seconds = RateLimiter::availableIn($this-&gt;throttleKey());
+ 75  
+ 76          throw ValidationException::withMessages([
+ 77              &#39;email&#39; =&gt; trans(&#39;auth.throttle&#39;, [
+ 78                  &#39;seconds&#39; =&gt; $seconds,
+ 79                  &#39;minutes&#39; =&gt; ceil($seconds / 60),
+ 80              ]),
+ 81          ]);
+ 82      }</pre><h2>app/Http/Requests/Auth/LoginRequest.php:87</h2><pre> 87      public function throttleKey(): string
+ 88      {
+ 89          return Str::transliterate(Str::lower($this-&gt;string(&#39;email&#39;)).&#39;|&#39;.$this-&gt;ip());
+ 90      }</pre><h2>vendor/laravel/framework/src/Illuminate/Cache/RateLimiter.php:148</h2><pre>148      public function hit($key, $decaySeconds = 60)
+149      {
+150          return $this-&gt;increment($key, $decaySeconds);
+151      }</pre><h2>MFA: password-only session creation</h2><p class="small">Current flow authenticates the password, creates the session, and redirects to the dashboard. No second-factor challenge is inserted here.</p><h2>app/Http/Controllers/Auth/AuthenticatedSessionController.php:31</h2><pre> 31      public function store(LoginRequest $request): RedirectResponse
+ 32      {
+ 33          $request-&gt;authenticate();
+ 34  
+ 35          $request-&gt;session()-&gt;regenerate();
+ 36          $request-&gt;session()-&gt;put(&#39;last_activity_at&#39;, now()-&gt;timestamp);
+ 37  
+ 38          AuditLog::record($request, &#39;auth.login.succeeded&#39;);
+ 39  
+ 40          return redirect()-&gt;intended(route(&#39;dashboard&#39;, absolute: false));
+ 41      }</pre><footer>Evidence report generated from real local browser captures, audit events, and source inspection. This report page is not an application UI screen. <a href="README.md">Full notes</a> · <a href="raw/final-audit-events.json">Audit JSON</a> · <a href="code-locations.html">Code locations</a></footer></main></html>

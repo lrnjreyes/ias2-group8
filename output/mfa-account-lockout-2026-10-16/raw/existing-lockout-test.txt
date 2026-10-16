@@ -1,0 +1,12 @@
+PHPUnit 12.5.35 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.5.11
+Configuration: C:\Users\Neon Felix\Documents\GitHub\ias2-group8\phpunit.xml
+
+Time: 00:01.942, Memory: 52.00 MB
+
+Security Controls (Tests\Feature\SecurityControls)
+ ✔ Login is rate limited after five failures
+
+OK (1 test, 3 assertions)
+{"tool":"phpunit","result":"passed","tests":1,"passed":1,"assertions":3,"duration_ms":1940}

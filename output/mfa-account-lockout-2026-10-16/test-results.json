@@ -1,0 +1,50 @@
+[
+  {
+    "id": "LOCK-01",
+    "check": "Five incorrect passwords",
+    "expected": "Reject all five and remain signed out.",
+    "actual": "Five credential errors; five auth.login.failed events (IDs 14-18).",
+    "result": "PASS",
+    "evidence": "screenshots/01-failed-attempt-1.jpg through screenshots/05-failed-attempt-5.jpg; raw/after-five-failures.json"
+  },
+  {
+    "id": "LOCK-02",
+    "check": "Limit active after failure five",
+    "expected": "Five failures for the same email/IP activate throttling.",
+    "actual": "Counter = 5; is_limited = true. Fifth response still shows the credential error.",
+    "result": "PASS",
+    "evidence": "raw/after-five-failures.json; screenshots/05-failed-attempt-5.jpg"
+  },
+  {
+    "id": "LOCK-03",
+    "check": "Correct password during lockout",
+    "expected": "Reject submission six, even with the correct password.",
+    "actual": "Too many login attempts. Please try again in 39 seconds.",
+    "result": "PASS",
+    "evidence": "screenshots/06-correct-password-blocked-by-lockout.jpg; raw/after-lockout.json"
+  },
+  {
+    "id": "LOCK-04",
+    "check": "Recovery after expiry",
+    "expected": "Allow the correct password after the window expires; clear the counter.",
+    "actual": "Dashboard reached after natural expiry. Counter = 0; auth.login.succeeded recorded.",
+    "result": "PASS",
+    "evidence": "screenshots/07-after-expiry-password-only-dashboard.jpg; raw/final-audit-events.json"
+  },
+  {
+    "id": "MFA-01",
+    "check": "Second authentication factor",
+    "expected": "If MFA were implemented, require a separate factor before granting dashboard access.",
+    "actual": "Email and password alone granted dashboard access. No MFA enrollment, challenge, secret, or recovery-code implementation found.",
+    "result": "NOT IMPLEMENTED / FAIL against an MFA requirement",
+    "evidence": "screenshots/07-after-expiry-password-only-dashboard.jpg; raw/mfa-source-search.txt; raw/routes.json; raw/source/"
+  },
+  {
+    "id": "AUDIT-01",
+    "check": "Audit events for this run",
+    "expected": "Record five failures, a blocked attempt, and the successful recovery.",
+    "actual": "Exactly 5 failed + 1 locked + 1 succeeded, IDs 14-20.",
+    "result": "PASS",
+    "evidence": "raw/final-audit-events.json"
+  }
+]
