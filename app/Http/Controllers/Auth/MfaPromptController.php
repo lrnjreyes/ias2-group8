@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\AuthenticationThrottle;
 use App\Support\Totp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -48,6 +48,7 @@ class MfaPromptController extends Controller
             'isSetup' => (bool) $isSetup,
             'otpAuthUri' => $otpAuthUri,
             'status' => session('status'),
+            'lockout' => AuthenticationThrottle::status('mfa|'.$user->id.'|'.$request->ip()),
         ]);
     }
 
@@ -70,31 +71,35 @@ class MfaPromptController extends Controller
 
         $throttleKey = 'mfa|'.$user->id.'|'.$request->ip();
 
-        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+        if ($lockout = AuthenticationThrottle::status($throttleKey)) {
             AuditLog::record($request, 'auth.mfa.locked', $user);
 
-            $seconds = RateLimiter::availableIn($throttleKey);
-
             throw ValidationException::withMessages([
-                'code' => "Too many invalid verification attempts. Please try again in {$seconds} seconds.",
+                'code' => AuthenticationThrottle::message($lockout, 'Too many invalid verification attempts.'),
             ]);
         }
 
         $submittedCode = preg_replace('/\s+/', '', (string) $request->input('code'));
 
         if (! $user->verifyMfaCode($submittedCode)) {
-            RateLimiter::hit($throttleKey, 60);
+            $lockout = AuthenticationThrottle::recordFailure($throttleKey);
 
             AuditLog::record($request, 'auth.mfa.failed', $user, [
                 'attempted_length' => strlen($submittedCode),
             ]);
 
+            if ($lockout) {
+                AuditLog::record($request, 'auth.mfa.locked', $user);
+            }
+
             throw ValidationException::withMessages([
-                'code' => 'The provided verification code is invalid or has expired.',
+                'code' => $lockout
+                    ? AuthenticationThrottle::message($lockout, 'Too many invalid verification attempts.')
+                    : 'The provided verification code is invalid or has expired.',
             ]);
         }
 
-        RateLimiter::clear($throttleKey);
+        AuthenticationThrottle::clear($throttleKey);
 
         if (is_null($user->mfa_confirmed_at)) {
             $user->update(['mfa_confirmed_at' => now()]);

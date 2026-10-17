@@ -1,11 +1,13 @@
 <script setup>
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import InputError from '@/Components/InputError.vue';
+import { useAuthenticationLockout } from '@/Composables/useAuthenticationLockout';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ref, onMounted, nextTick } from 'vue';
+import { computed, ref, onMounted, nextTick } from 'vue';
 import QRCode from 'qrcode';
 
 const props = defineProps({
+    lockout: Object,
     email: {
         type: String,
         required: true,
@@ -30,6 +32,12 @@ const props = defineProps({
 const form = useForm({
     code: '',
 });
+
+const { isLocked, message: lockoutMessage } = useAuthenticationLockout(
+    () => props.lockout,
+    'Too many invalid verification attempts.',
+);
+const codeError = computed(() => props.lockout ? lockoutMessage.value : form.errors.code);
 
 const digits = ref(['', '', '', '', '', '']);
 const digitInputs = ref([]);
@@ -123,6 +131,8 @@ const syncCode = () => {
 };
 
 const submit = () => {
+    if (form.processing || isLocked.value) return;
+
     syncCode();
     form.post(route('mfa.verify'), {
         onFinish: () => {
@@ -210,9 +220,10 @@ const cancel = () => {
                         inputmode="numeric"
                         maxlength="1"
                         autocomplete="off"
+                        :disabled="form.processing || isLocked"
                         :aria-label="'Verification code digit ' + (idx + 1)"
-                        :aria-invalid="!!form.errors.code"
-                        :aria-describedby="form.errors.code ? 'setup-code-error' : undefined"
+                        :aria-invalid="!!codeError"
+                        :aria-describedby="codeError ? 'setup-code-error' : undefined"
                         class="h-11 w-9 rounded-sm border border-gray-400 text-center font-mono text-xl text-gray-900 focus:border-[#0067b8] focus:ring-1 focus:ring-[#0067b8] sm:w-11"
                         v-model="digits[idx]"
                         @input="handleInput(idx, $event)"
@@ -220,7 +231,7 @@ const cancel = () => {
                     />
                 </div>
 
-                <InputError id="setup-code-error" role="alert" class="mt-2" :message="form.errors.code" />
+                <InputError id="setup-code-error" role="alert" class="mt-2" :message="codeError" />
 
                 <div class="mt-7 flex justify-end gap-3">
                     <button
@@ -232,7 +243,7 @@ const cancel = () => {
                     </button>
                     <button
                         type="submit"
-                        :disabled="form.processing || form.code.length !== 6"
+                        :disabled="form.processing || isLocked || form.code.length !== 6"
                         class="min-h-11 rounded-sm bg-[#0067b8] px-5 text-sm font-medium text-white hover:bg-[#005a9e] focus:outline-none focus:ring-2 focus:ring-[#0067b8] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <span>{{ form.processing ? 'Verifying...' : 'Finish setup' }}</span>
@@ -269,6 +280,7 @@ const cancel = () => {
                         inputmode="numeric"
                         maxlength="1"
                         autocomplete="off"
+                        :disabled="form.processing || isLocked"
                         class="h-14 w-12 rounded-md border-2 border-gray-300 text-center font-mono text-2xl font-bold text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition shadow-inner bg-white"
                         v-model="digits[idx]"
                         @input="handleInput(idx, $event)"
@@ -276,13 +288,13 @@ const cancel = () => {
                     />
                 </div>
 
-                <InputError class="text-center" :message="form.errors.code" />
+                <InputError class="text-center" :message="codeError" />
 
                 <!-- Action Buttons: Clean Checkmark OK and Cross Cancel -->
                 <div class="flex items-center justify-center gap-4 pt-2">
                     <button
                         type="submit"
-                        :disabled="form.processing || form.code.length !== 6"
+                        :disabled="form.processing || isLocked || form.code.length !== 6"
                         class="inline-flex items-center gap-1.5 rounded-full border border-blue-400 bg-white px-5 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-40 transition shadow-sm"
                     >
                         <svg class="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

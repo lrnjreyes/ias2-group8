@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-17",
+  "spreadsheet": "https://docs.google.com/spreadsheets/d/1vpaWKMeMrdwN2Azf9T7-SX_wlkCtK5zJMj5-hdAQgxk/edit",
+  "sheet": "Implementation Log",
+  "scope": "Only Control #1 updated. Control #2 and diagram field restored to original.",
+  "entries": {
+    "17": "Laravel Authentication and Rate Limiting, custom TOTP verification, and qrcode.",
+    "18": "Laravel 13.32.0; PHP 8.5.11; qrcode 1.5.4.",
+    "19": "We added an authenticator step after the email and password. The user can scan the QR code or enter the setup key manually. After setup, the system asks for a six-digit code when signing in. Repeated wrong passwords or codes also lead to a temporary lockout.",
+    "21": "Lockout: app/Http/Requests/Auth/LoginRequest.php, lines 43–93. MFA: app/Http/Controllers/Auth/MfaPromptController.php, lines 57–115. Login: app/Http/Controllers/Auth/AuthenticatedSessionController.php, line 31. Code checking: app/Support/Totp.php. Setup page: resources/js/Pages/Auth/MfaChallenge.vue.",
+    "22": "We added QR setup, a copyable setup key, six-digit code entry, Cancel, and a reset/re-scan option. MFA is required after registration and every sign-in, including after logout. Remember me does not skip MFA. Five wrong password or MFA attempts temporarily block the next attempt.",
+    "23": "MFA was added and updated on October 17, 2026. Account Lockout was already working in the October 16 test. Both were checked again on October 17, 2026.",
+    "25": "The user should finish MFA before opening the dashboard. A valid code should allow login, while a wrong or expired code should be rejected. The system should ask for MFA again after logout. After five failed attempts, the next attempt should be blocked for up to one minute.",
+    "26": "The QR code and setup key were displayed. A valid code allowed login, and a wrong code showed an error. The dashboard could not be opened before MFA. Signing out and signing in again asked for another code. Password and MFA lockouts also worked in the tests.",
+    "28": "MFA was previously skipped for some accounts and after registration. This was fixed. One issue still needs fixing: the existing setup key can be viewed again after entering the password, before MFA is completed. Recovery codes and protection against reusing the same valid code are not included.",
+    "29": "We required MFA for existing and new accounts and checked the login, logout, and lockout flow again. We also added QR setup, manual key entry, and code checking. The setup key should only be shown during an authorized setup or recovery process. This remaining issue still needs to be fixed and retested.",
+    "31": "Needs rework/debugging",
+    "33": "Test first-time QR/manual-key setup, valid and wrong codes, Cancel, and dashboard access before MFA. Log out and sign in again with Remember me checked. Enter a wrong password five times, then try the correct password. Repeat with five wrong MFA codes. Retry after the lockout expires. Check whether the existing setup key is still exposed.",
+    "34": "Valid MFA should allow login. Wrong codes and canceled MFA should not open the dashboard. Every sign-in should ask for a code. After five wrong passwords or codes, the next attempt should be blocked until the temporary lockout ends. Password lockout applies to the same email/IP; MFA lockout applies to the same user/IP.",
+    "35": "Valid codes allowed login and wrong codes were rejected. MFA was required after registration and after signing in again. The next attempt was blocked after five wrong passwords or MFA codes. A retry worked after 61 seconds in the test. All 38 application tests and four extra checks passed. However, the setup-key access issue was also confirmed.",
+    "36": "We have screenshots of QR setup, the wrong-code message, and the code-only page in output/implementation-log-2026-10-17/, together with the test results. The failed-password and lockout screenshots are in output/mfa-account-lockout-2026-10-16/ from the earlier test. Scanning with an actual phone still needs to be recorded.",
+    "37": "Needs adjustment",
+    "38": "Retest"
+  },
+  "notes": {
+    "37": "The login and lockout tests passed, but the existing setup key can still be viewed before MFA is completed.",
+    "38": "Fix access to the setup key, then repeat the MFA and recovery tests."
+  },
+  "evidence": {
+    "applicationTests": 38,
+    "applicationAssertions": 186,
+    "evidenceTests": 4,
+    "evidenceAssertions": 61
+  }
+}

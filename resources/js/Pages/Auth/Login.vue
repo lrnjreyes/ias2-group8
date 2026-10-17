@@ -5,9 +5,13 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
+import { useAuthenticationLockout } from '@/Composables/useAuthenticationLockout';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
+    lockout: Object,
+    lockoutEmail: String,
     canResetPassword: {
         type: Boolean,
     },
@@ -17,12 +21,21 @@ defineProps({
 });
 
 const form = useForm({
-    email: '',
+    email: props.lockoutEmail || '',
     password: '',
     remember: false,
 });
 
+const { isLocked, message: lockoutMessage } = useAuthenticationLockout(
+    () => props.lockout,
+    'Too many login attempts.',
+    () => form.email.trim().toLowerCase() === props.lockoutEmail?.trim().toLowerCase(),
+);
+const emailError = computed(() => props.lockout ? lockoutMessage.value : form.errors.email);
+
 const submit = () => {
+    if (form.processing || isLocked.value) return;
+
     form.post(route('login'), {
         onFinish: () => form.reset('password'),
     });
@@ -51,7 +64,7 @@ const submit = () => {
                     autocomplete="username"
                 />
 
-                <InputError class="mt-2" :message="form.errors.email" />
+                <InputError class="mt-2" :message="emailError" />
             </div>
 
             <div class="mt-4">
@@ -89,8 +102,8 @@ const submit = () => {
 
                 <PrimaryButton
                     class="ms-4"
-                    :class="{ 'opacity-25': form.processing }"
-                    :disabled="form.processing"
+                    :class="{ 'opacity-25': form.processing || isLocked }"
+                    :disabled="form.processing || isLocked"
                 >
                     Log in
                 </PrimaryButton>
