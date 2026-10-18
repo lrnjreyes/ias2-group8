@@ -7,7 +7,7 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { useAuthenticationLockout } from '@/Composables/useAuthenticationLockout';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     lockout: Object,
@@ -32,6 +32,7 @@ const { isLocked, message: lockoutMessage } = useAuthenticationLockout(
     () => form.email.trim().toLowerCase() === props.lockoutEmail?.trim().toLowerCase(),
 );
 const emailError = computed(() => props.lockout ? lockoutMessage.value : form.errors.email);
+const showPassword = ref(false);
 
 const submit = () => {
     if (form.processing || isLocked.value) return;
@@ -70,14 +71,25 @@ const submit = () => {
             <div class="mt-4">
                 <InputLabel for="password" value="Password" />
 
-                <TextInput
-                    id="password"
-                    type="password"
-                    class="mt-1 block w-full"
-                    v-model="form.password"
-                    required
-                    autocomplete="current-password"
-                />
+                <div class="relative mt-1">
+                    <TextInput
+                        id="password"
+                        :type="showPassword ? 'text' : 'password'"
+                        class="block w-full pr-24"
+                        v-model="form.password"
+                        required
+                        autocomplete="current-password"
+                    />
+                    <button
+                        type="button"
+                        class="absolute inset-y-0 right-0 flex items-center rounded-r-md px-3 text-sm font-medium text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                        :aria-pressed="showPassword"
+                        :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                        @click="showPassword = !showPassword"
+                    >
+                        {{ showPassword ? 'Hide' : 'Show' }}
+                    </button>
+                </div>
 
                 <InputError class="mt-2" :message="form.errors.password" />
             </div>

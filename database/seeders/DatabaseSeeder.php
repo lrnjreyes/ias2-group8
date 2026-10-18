@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'admin',
             'password' => 'DemoPassword!2026',
             'mfa_enabled' => true,
-            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
+            'mfa_secret' => null,
             'mfa_confirmed_at' => null,
             'email_verified_at' => now(),
         ]);
@@ -33,7 +33,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'employee',
             'password' => 'DemoPassword!2026',
             'mfa_enabled' => true,
-            'mfa_secret' => 'JBSWY3DPEHPK3PXP',
+            'mfa_secret' => null,
             'mfa_confirmed_at' => null,
             'email_verified_at' => now(),
         ]);

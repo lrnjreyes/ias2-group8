@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\EmployeeController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\MfaPromptController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
@@ -29,6 +30,10 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'verified', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::patch('/users/{user}', [UserController::class, 'update'])->name('users.update');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
     Route::patch('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');

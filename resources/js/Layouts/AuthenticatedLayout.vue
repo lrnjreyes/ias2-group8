@@ -62,6 +62,20 @@ onBeforeUnmount(() => {
                                 >
                                     Dashboard
                                 </NavLink>
+                                <NavLink
+                                    v-if="$page.props.auth.user.role === 'admin'"
+                                    :href="route('admin.users.index')"
+                                    :active="route().current('admin.users.*')"
+                                >
+                                    Users
+                                </NavLink>
+                                <NavLink
+                                    v-if="$page.props.auth.user.role === 'admin'"
+                                    :href="route('admin.audit-logs.index')"
+                                    :active="route().current('admin.audit-logs.*')"
+                                >
+                                    Audit Logs
+                                </NavLink>
                             </div>
                         </div>
 
@@ -168,6 +182,20 @@ onBeforeUnmount(() => {
                             :active="route().current('dashboard')"
                         >
                             Dashboard
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            v-if="$page.props.auth.user.role === 'admin'"
+                            :href="route('admin.users.index')"
+                            :active="route().current('admin.users.*')"
+                        >
+                            Users
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            v-if="$page.props.auth.user.role === 'admin'"
+                            :href="route('admin.audit-logs.index')"
+                            :active="route().current('admin.audit-logs.*')"
+                        >
+                            Audit Logs
                         </ResponsiveNavLink>
                     </div>
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\AuditLog;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,13 +30,30 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $user->fill($request->validated());
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $changes = collect($user->getDirty())
+            ->only(['name', 'email'])
+            ->mapWithKeys(fn (mixed $after, string $field): array => [
+                $field => [
+                    'before' => $user->getOriginal($field),
+                    'after' => $after,
+                ],
+            ])
+            ->all();
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
         }
 
-        $request->user()->save();
+        $user->save();
+
+        if ($changes !== []) {
+            AuditLog::record($request, 'profile.updated', $user, [
+                'changes' => $changes,
+            ]);
+        }
 
         return Redirect::route('profile.edit');
     }

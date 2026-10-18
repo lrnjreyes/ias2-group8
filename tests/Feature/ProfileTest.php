@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -41,6 +42,27 @@ class ProfileTest extends TestCase
         $this->assertSame('Test User', $user->name);
         $this->assertSame('test@example.com', $user->email);
         $this->assertNull($user->email_verified_at);
+
+        $log = AuditLog::where('event', 'profile.updated')->firstOrFail();
+        $this->assertSame($user->id, $log->actor_id);
+        $this->assertSame($user->id, $log->subject_id);
+        $this->assertSame('Test User', $log->metadata['changes']['name']['after']);
+        $this->assertSame('test@example.com', $log->metadata['changes']['email']['after']);
+    }
+
+    public function test_saving_an_unchanged_profile_does_not_create_an_update_log(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->patch('/profile', [
+            'name' => $user->name,
+            'email' => $user->email,
+        ])->assertRedirect('/profile');
+
+        $this->assertDatabaseMissing('audit_logs', [
+            'event' => 'profile.updated',
+            'subject_id' => $user->id,
+        ]);
     }
 
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
