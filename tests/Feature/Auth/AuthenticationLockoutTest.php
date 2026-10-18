@@ -23,7 +23,7 @@ class AuthenticationLockoutTest extends TestCase
     }
 
     #[DataProvider('challenges')]
-    public function test_fifth_failure_locks_and_refresh_keeps_the_remaining_time(string $challenge): void
+    public function test_fifth_failure_starts_a_full_minute_and_refresh_keeps_the_remaining_time(string $challenge): void
     {
         $this->freezeTime();
         $user = $this->prepareUser($challenge);
@@ -31,6 +31,7 @@ class AuthenticationLockoutTest extends TestCase
         for ($attempt = 1; $attempt <= 4; $attempt++) {
             $this->attempt($challenge, $user)->assertSessionHasErrors($this->field($challenge));
             $this->assertNull(AuthenticationThrottle::status($this->key($challenge, $user)));
+            $this->travel(8)->seconds();
         }
 
         $this->attempt($challenge, $user)->assertSessionHasErrors([
@@ -44,6 +45,17 @@ class AuthenticationLockoutTest extends TestCase
         $this->attempt($challenge, $user, valid: true)->assertSessionHasErrors($this->field($challenge));
         $this->assertGuest();
         $this->assertSame(53, AuthenticationThrottle::status($this->key($challenge, $user))['retryAfter']);
+
+        $this->travel(23)->seconds();
+        $this->attempt($challenge, $user)->assertSessionHasErrors($this->field($challenge));
+        $this->attempt($challenge, $user, valid: true)->assertSessionHasErrors($this->field($challenge));
+        $this->assertGuest();
+        $this->assertSame(30, AuthenticationThrottle::status($this->key($challenge, $user))['retryAfter']);
+
+        $this->travel(31)->seconds();
+        $this->attempt($challenge, $user, valid: true)->assertRedirect(
+            $challenge === 'password' ? '/mfa-challenge' : '/dashboard'
+        );
     }
 
     #[DataProvider('challenges')]

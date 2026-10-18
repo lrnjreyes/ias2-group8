@@ -45,6 +45,11 @@ class AuthenticationThrottle
         RateLimiter::hit($key, self::INITIAL_SECONDS);
 
         if ($status = self::status($key)) {
+            // Give the lockout a full minute, separate from the earlier failed-attempt window.
+            RateLimiter::clear($key);
+            RateLimiter::increment($key, self::INITIAL_SECONDS, self::MAX_ATTEMPTS);
+            $status = self::status($key);
+
             // Keep the previous lockout after its timer expires so another failure gets a longer wait.
             Cache::put(self::marker($key, 'previous'), true, self::HISTORY_SECONDS);
         }
